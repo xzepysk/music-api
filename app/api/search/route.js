@@ -1,5 +1,5 @@
 import m from '../../../lib/mscrape'
-import { norm } from '../../../lib/norm'
+import { norm, isLive, LIVE } from '../../../lib/norm'
 import { uid } from '../../../lib/auth'
 export const runtime = 'nodejs'
 const cache = new Map()
@@ -9,7 +9,8 @@ export async function GET(req) {
   const k = type + q.toLowerCase(), hit = cache.get(k)
   if (hit && Date.now() - hit.t < 6e5) return Response.json({ results: hit.r })
   try {
-    const r = (await m.searchSpotify(q, type)).map(x => norm(x, type))
+    let r = (await m.searchSpotify(q, type)).map(x => norm(x, type))
+    if (type === 'track' && !LIVE.test(q)) { const nl = r.filter(x => !isLive(x)); if (nl.length) r = nl }
     cache.set(k, { t: Date.now(), r })
     return Response.json({ results: r })
   } catch (e) { return Response.json({ results: [], error: e.message }, { status: 500 }) }
