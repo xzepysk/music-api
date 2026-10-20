@@ -1,3 +1,4 @@
+// imma fool jobless
 import { getServerSession } from 'next-auth'
 import { authOptions } from '../lib/auth'
 import App, { Login } from '../components/App'
