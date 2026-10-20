@@ -1,5 +1,6 @@
 import axios from 'axios'
 import { uid } from '../../../lib/auth'
+import { LIVE } from '../../../lib/norm'
 export const runtime = 'nodejs'
 export const maxDuration = 60
 const BASE = 'https://spotsaver.net'
@@ -7,10 +8,11 @@ const H = { 'Content-Type': 'application/json', 'User-Agent': 'Mozilla/5.0 (Wind
 const cache = new Map()
 const TTL = 15 * 60 * 1000
 const n = s => String(s || '').toLowerCase().replace(/\(.*?\)|\[.*?\]|- *(remaster(ed)?|live|mono|stereo).*$/g, '').replace(/[^a-z0-9]+/g, ' ').trim()
+const nonLive = (list, get, wanted) => { if (LIVE.test(wanted)) return list; const f = list.filter(x => !LIVE.test(get(x))); return f.length ? f : list }
 
 async function spotsaver(title, artist) {
   const q = await axios.get(`${BASE}/api/spotify/?q=${encodeURIComponent(title + ' ' + artist)}`, { headers: H, timeout: 30000 })
-  const items = q.data?.items || []
+  const items = nonLive(q.data?.items || [], x => `${x.title || ''} ${x.album || ''}`, title)
   const t = n(title), a = n(artist).split(' ')[0]
   const it = items.find(x => n(x.title) === t && n(x.artist).includes(a)) || items.find(x => n(x.title) === t) || items[0]
   if (!it) return null
@@ -26,7 +28,7 @@ async function spotsaver(title, artist) {
 
 async function itunes(title, artist) {
   const r = await fetch('https://itunes.apple.com/search?' + new URLSearchParams({ term: title + ' ' + artist, media: 'music', entity: 'song', limit: '10' }), { headers: { 'User-Agent': 'Mozilla/5.0' } })
-  const list = (await r.json()).results || []
+  const list = nonLive((await r.json()).results || [], x => `${x.trackName || ''} ${x.collectionName || ''}`, title)
   const t = n(title), a = n(artist).split(' ')[0]
   const b = list.find(x => n(x.trackName) === t && n(x.artistName).includes(a)) || list.find(x => n(x.trackName).includes(t) && n(x.artistName).includes(a)) || list.find(x => n(x.trackName) === t) || list[0]
   return b?.previewUrl || null
